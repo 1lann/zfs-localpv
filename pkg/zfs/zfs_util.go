@@ -18,15 +18,15 @@ package zfs
 
 import (
 	"bufio"
+	"bytes"
+	"fmt"
+	"net"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
-
-	"fmt"
-	"os"
-	"time"
-
 	"strings"
+	"time"
 
 	"github.com/openebs/lib-csi/pkg/btrfs"
 	"github.com/openebs/lib-csi/pkg/xfs"
@@ -91,94 +91,94 @@ func GetVolumeType(fstype string) string {
 
 // builldZvolCreateArgs returns zfs create command for zvol along with attributes as a string array
 func buildZvolCreateArgs(vol *apis.ZFSVolume) []string {
-	var ZFSVolArg []string
+	var zfsVolArgs []string
 
 	volume := vol.Spec.PoolName + "/" + vol.Name
 
-	ZFSVolArg = append(ZFSVolArg, ZFSCreateArg)
+	zfsVolArgs = append(zfsVolArgs, ZFSCreateArg)
 
 	if vol.Spec.ThinProvision == "yes" {
-		ZFSVolArg = append(ZFSVolArg, "-s")
+		zfsVolArgs = append(zfsVolArgs, "-s")
 	}
 	if len(vol.Spec.Capacity) != 0 {
-		ZFSVolArg = append(ZFSVolArg, "-V", vol.Spec.Capacity)
+		zfsVolArgs = append(zfsVolArgs, "-V", vol.Spec.Capacity)
 	}
 	if len(vol.Spec.VolBlockSize) != 0 {
-		ZFSVolArg = append(ZFSVolArg, "-b", vol.Spec.VolBlockSize)
+		zfsVolArgs = append(zfsVolArgs, "-b", vol.Spec.VolBlockSize)
 	}
 	if len(vol.Spec.Dedup) != 0 {
 		dedupProperty := "dedup=" + vol.Spec.Dedup
-		ZFSVolArg = append(ZFSVolArg, "-o", dedupProperty)
+		zfsVolArgs = append(zfsVolArgs, "-o", dedupProperty)
 	}
 	if len(vol.Spec.Compression) != 0 {
 		compressionProperty := "compression=" + vol.Spec.Compression
-		ZFSVolArg = append(ZFSVolArg, "-o", compressionProperty)
+		zfsVolArgs = append(zfsVolArgs, "-o", compressionProperty)
 	}
 	if len(vol.Spec.Encryption) != 0 {
 		encryptionProperty := "encryption=" + vol.Spec.Encryption
-		ZFSVolArg = append(ZFSVolArg, "-o", encryptionProperty)
+		zfsVolArgs = append(zfsVolArgs, "-o", encryptionProperty)
 	}
 	if len(vol.Spec.KeyLocation) != 0 {
 		keyLocation := "keylocation=" + vol.Spec.KeyLocation
-		ZFSVolArg = append(ZFSVolArg, "-o", keyLocation)
+		zfsVolArgs = append(zfsVolArgs, "-o", keyLocation)
 	}
 	if len(vol.Spec.KeyFormat) != 0 {
 		keyFormat := "keyformat=" + vol.Spec.KeyFormat
-		ZFSVolArg = append(ZFSVolArg, "-o", keyFormat)
+		zfsVolArgs = append(zfsVolArgs, "-o", keyFormat)
 	}
 
-	ZFSVolArg = append(ZFSVolArg, volume)
+	zfsVolArgs = append(zfsVolArgs, volume)
 
-	return ZFSVolArg
+	return zfsVolArgs
 }
 
 // builldCloneCreateArgs returns zfs clone commands for zfs volume/dataset along with attributes as a string array
 func buildCloneCreateArgs(vol *apis.ZFSVolume) []string {
-	var ZFSVolArg []string
+	var zfsVolArgs []string
 
 	volume := vol.Spec.PoolName + "/" + vol.Name
 	snapshot := vol.Spec.PoolName + "/" + vol.Spec.SnapName
 
-	ZFSVolArg = append(ZFSVolArg, ZFSCloneArg)
+	zfsVolArgs = append(zfsVolArgs, ZFSCloneArg)
 
 	if vol.Spec.VolumeType == VolTypeDataset {
 		if len(vol.Spec.Capacity) != 0 {
 			quotaProperty := "quota=" + vol.Spec.Capacity
-			ZFSVolArg = append(ZFSVolArg, "-o", quotaProperty)
+			zfsVolArgs = append(zfsVolArgs, "-o", quotaProperty)
 		}
 		if len(vol.Spec.RecordSize) != 0 {
 			recordsizeProperty := "recordsize=" + vol.Spec.RecordSize
-			ZFSVolArg = append(ZFSVolArg, "-o", recordsizeProperty)
+			zfsVolArgs = append(zfsVolArgs, "-o", recordsizeProperty)
 		}
 		if vol.Spec.ThinProvision == "no" {
 			reservationProperty := "reservation=" + vol.Spec.Capacity
-			ZFSVolArg = append(ZFSVolArg, "-o", reservationProperty)
+			zfsVolArgs = append(zfsVolArgs, "-o", reservationProperty)
 		}
-		ZFSVolArg = append(ZFSVolArg, "-o", "mountpoint=legacy")
+		zfsVolArgs = append(zfsVolArgs, "-o", "mountpoint=legacy")
 	}
 
 	if len(vol.Spec.Dedup) != 0 {
 		dedupProperty := "dedup=" + vol.Spec.Dedup
-		ZFSVolArg = append(ZFSVolArg, "-o", dedupProperty)
+		zfsVolArgs = append(zfsVolArgs, "-o", dedupProperty)
 	}
 	if len(vol.Spec.Compression) != 0 {
 		compressionProperty := "compression=" + vol.Spec.Compression
-		ZFSVolArg = append(ZFSVolArg, "-o", compressionProperty)
+		zfsVolArgs = append(zfsVolArgs, "-o", compressionProperty)
 	}
 	if len(vol.Spec.Encryption) != 0 {
 		encryptionProperty := "encryption=" + vol.Spec.Encryption
-		ZFSVolArg = append(ZFSVolArg, "-o", encryptionProperty)
+		zfsVolArgs = append(zfsVolArgs, "-o", encryptionProperty)
 	}
 	if len(vol.Spec.KeyLocation) != 0 {
 		keyLocation := "keylocation=" + vol.Spec.KeyLocation
-		ZFSVolArg = append(ZFSVolArg, "-o", keyLocation)
+		zfsVolArgs = append(zfsVolArgs, "-o", keyLocation)
 	}
 	if len(vol.Spec.KeyFormat) != 0 {
 		keyFormat := "keyformat=" + vol.Spec.KeyFormat
-		ZFSVolArg = append(ZFSVolArg, "-o", keyFormat)
+		zfsVolArgs = append(zfsVolArgs, "-o", keyFormat)
 	}
-	ZFSVolArg = append(ZFSVolArg, snapshot, volume)
-	return ZFSVolArg
+	zfsVolArgs = append(zfsVolArgs, snapshot, volume)
+	return zfsVolArgs
 }
 
 // buildZFSSnapCreateArgs returns zfs create command for zfs snapshot
@@ -209,198 +209,175 @@ func buildZFSSnapDestroyArgs(snap *apis.ZFSSnapshot) []string {
 
 // builldDatasetCreateArgs returns zfs create command for dataset along with attributes as a string array
 func buildDatasetCreateArgs(vol *apis.ZFSVolume) []string {
-	var ZFSVolArg []string
+	var zfsVolArgs []string
 
 	volume := vol.Spec.PoolName + "/" + vol.Name
 
-	ZFSVolArg = append(ZFSVolArg, ZFSCreateArg)
+	zfsVolArgs = append(zfsVolArgs, ZFSCreateArg)
 
 	if len(vol.Spec.Capacity) != 0 {
 		quotaProperty := "quota=" + vol.Spec.Capacity
-		ZFSVolArg = append(ZFSVolArg, "-o", quotaProperty)
+		zfsVolArgs = append(zfsVolArgs, "-o", quotaProperty)
 	}
 	if len(vol.Spec.RecordSize) != 0 {
 		recordsizeProperty := "recordsize=" + vol.Spec.RecordSize
-		ZFSVolArg = append(ZFSVolArg, "-o", recordsizeProperty)
+		zfsVolArgs = append(zfsVolArgs, "-o", recordsizeProperty)
 	}
 	if vol.Spec.ThinProvision == "no" {
 		reservationProperty := "reservation=" + vol.Spec.Capacity
-		ZFSVolArg = append(ZFSVolArg, "-o", reservationProperty)
+		zfsVolArgs = append(zfsVolArgs, "-o", reservationProperty)
 	}
 	if len(vol.Spec.Dedup) != 0 {
 		dedupProperty := "dedup=" + vol.Spec.Dedup
-		ZFSVolArg = append(ZFSVolArg, "-o", dedupProperty)
+		zfsVolArgs = append(zfsVolArgs, "-o", dedupProperty)
 	}
 	if len(vol.Spec.Compression) != 0 {
 		compressionProperty := "compression=" + vol.Spec.Compression
-		ZFSVolArg = append(ZFSVolArg, "-o", compressionProperty)
+		zfsVolArgs = append(zfsVolArgs, "-o", compressionProperty)
 	}
 	if len(vol.Spec.Encryption) != 0 {
 		encryptionProperty := "encryption=" + vol.Spec.Encryption
-		ZFSVolArg = append(ZFSVolArg, "-o", encryptionProperty)
+		zfsVolArgs = append(zfsVolArgs, "-o", encryptionProperty)
 	}
 	if len(vol.Spec.KeyLocation) != 0 {
 		keyLocation := "keylocation=" + vol.Spec.KeyLocation
-		ZFSVolArg = append(ZFSVolArg, "-o", keyLocation)
+		zfsVolArgs = append(zfsVolArgs, "-o", keyLocation)
 	}
 	if len(vol.Spec.KeyFormat) != 0 {
 		keyFormat := "keyformat=" + vol.Spec.KeyFormat
-		ZFSVolArg = append(ZFSVolArg, "-o", keyFormat)
+		zfsVolArgs = append(zfsVolArgs, "-o", keyFormat)
 	}
 
 	// set the mount path to none, by default zfs mounts it to the default dataset path
-	ZFSVolArg = append(ZFSVolArg, "-o", "mountpoint=legacy", volume)
+	zfsVolArgs = append(zfsVolArgs, "-o", "mountpoint=legacy", volume)
 
-	return ZFSVolArg
+	return zfsVolArgs
 }
 
 // builldVolumeSetArgs returns volume set command along with attributes as a string array
 // TODO(pawan) need to find a way to identify which property has changed
 func buildVolumeSetArgs(vol *apis.ZFSVolume) []string {
-	var ZFSVolArg []string
+	var zfsVolArgs []string
 
 	volume := vol.Spec.PoolName + "/" + vol.Name
 
-	ZFSVolArg = append(ZFSVolArg, ZFSSetArg)
+	zfsVolArgs = append(zfsVolArgs, ZFSSetArg)
 
 	if vol.Spec.VolumeType == VolTypeDataset &&
 		len(vol.Spec.RecordSize) != 0 {
 		recordsizeProperty := "recordsize=" + vol.Spec.RecordSize
-		ZFSVolArg = append(ZFSVolArg, recordsizeProperty)
+		zfsVolArgs = append(zfsVolArgs, recordsizeProperty)
 	}
 
 	if len(vol.Spec.Dedup) != 0 {
 		dedupProperty := "dedup=" + vol.Spec.Dedup
-		ZFSVolArg = append(ZFSVolArg, dedupProperty)
+		zfsVolArgs = append(zfsVolArgs, dedupProperty)
 	}
 	if len(vol.Spec.Compression) != 0 {
 		compressionProperty := "compression=" + vol.Spec.Compression
-		ZFSVolArg = append(ZFSVolArg, compressionProperty)
+		zfsVolArgs = append(zfsVolArgs, compressionProperty)
 	}
 
-	ZFSVolArg = append(ZFSVolArg, volume)
+	zfsVolArgs = append(zfsVolArgs, volume)
 
-	return ZFSVolArg
+	return zfsVolArgs
 }
 
 // builldVolumeResizeArgs returns volume set  for resizing the zfs volume
 func buildVolumeResizeArgs(vol *apis.ZFSVolume) []string {
-	var ZFSVolArg []string
+	var zfsVolArgs []string
 
 	volume := vol.Spec.PoolName + "/" + vol.Name
 
-	ZFSVolArg = append(ZFSVolArg, ZFSSetArg)
+	zfsVolArgs = append(zfsVolArgs, ZFSSetArg)
 
 	if vol.Spec.VolumeType == VolTypeDataset {
 		quotaProperty := "quota=" + vol.Spec.Capacity
-		ZFSVolArg = append(ZFSVolArg, quotaProperty)
+		zfsVolArgs = append(zfsVolArgs, quotaProperty)
 	} else {
 		volsizeProperty := "volsize=" + vol.Spec.Capacity
-		ZFSVolArg = append(ZFSVolArg, volsizeProperty)
+		zfsVolArgs = append(zfsVolArgs, volsizeProperty)
 	}
 
-	ZFSVolArg = append(ZFSVolArg, volume)
+	zfsVolArgs = append(zfsVolArgs, volume)
 
-	return ZFSVolArg
+	return zfsVolArgs
 }
 
 // builldVolumeBackupArgs returns volume send command for sending the zfs volume
-func buildVolumeBackupArgs(bkp *apis.ZFSBackup, vol *apis.ZFSVolume) ([]string, error) {
-	var ZFSVolArg []string
-	backupDest := bkp.Spec.BackupDest
-
-	bkpAddr := strings.Split(backupDest, ":")
-	if len(bkpAddr) != 2 {
-		return ZFSVolArg, fmt.Errorf("zfs: invalid backup server address %s", backupDest)
-	}
+func buildVolumeBackupArgs(bkp *apis.ZFSBackup, vol *apis.ZFSVolume) []string {
+	zfsVolArgs := []string{ZFSSendArg}
 
 	curSnap := vol.Spec.PoolName + "/" + vol.Name + "@" + bkp.Spec.SnapName
 
-	remote := " | nc -w 3 " + bkpAddr[0] + " " + bkpAddr[1]
-
-	cmd := ZFSVolCmd + " "
-
 	if len(bkp.Spec.PrevSnapName) > 0 {
-		prevSnap := vol.Spec.PoolName + "/" + vol.Name + "@" + bkp.Spec.PrevSnapName
 		// do incremental send
-		cmd += ZFSSendArg + " -i " + prevSnap + " " + curSnap + " " + remote
+		prevSnap := vol.Spec.PoolName + "/" + vol.Name + "@" + bkp.Spec.PrevSnapName
+		zfsVolArgs = append(zfsVolArgs, "-i", prevSnap, curSnap)
 	} else {
-		cmd += ZFSSendArg + " " + curSnap + remote
+		zfsVolArgs = append(zfsVolArgs, curSnap)
 	}
 
-	ZFSVolArg = append(ZFSVolArg, "-c", cmd)
-
-	return ZFSVolArg, nil
+	return zfsVolArgs
 }
 
 // builldVolumeRestoreArgs returns volume recv command for receiving the zfs volume
-func buildVolumeRestoreArgs(rstr *apis.ZFSRestore) ([]string, error) {
-	var ZFSVolArg []string
-	var ZFSRecvParam string
-	restoreSrc := rstr.Spec.RestoreSrc
+func buildVolumeRestoreArgs(rstr *apis.ZFSRestore) []string {
+	zfsVolArgs := []string{ZFSRecvArg}
 
 	volume := rstr.VolSpec.PoolName + "/" + rstr.Spec.VolumeName
 
-	rstrAddr := strings.Split(restoreSrc, ":")
-	if len(rstrAddr) != 2 {
-		return ZFSVolArg, fmt.Errorf("zfs: invalid restore server address %s", restoreSrc)
-	}
-
-	source := "nc -w 3 " + rstrAddr[0] + " " + rstrAddr[1] + " | "
-
 	if rstr.VolSpec.VolumeType == VolTypeDataset {
 		if len(rstr.VolSpec.Capacity) != 0 {
-			ZFSRecvParam += " -o quota=" + rstr.VolSpec.Capacity
+			zfsVolArgs = append(zfsVolArgs, "-o", "quota="+rstr.VolSpec.Capacity)
 		}
 		if len(rstr.VolSpec.RecordSize) != 0 {
-			ZFSRecvParam += " -o recordsize=" + rstr.VolSpec.RecordSize
+			zfsVolArgs = append(zfsVolArgs, "-o", "recordsize="+rstr.VolSpec.RecordSize)
 		}
 		if rstr.VolSpec.ThinProvision == "no" {
-			ZFSRecvParam += " -o reservation=" + rstr.VolSpec.Capacity
+			zfsVolArgs = append(zfsVolArgs, "-o", "reservation="+rstr.VolSpec.Capacity)
 		}
-		ZFSRecvParam += " -o mountpoint=legacy"
+		zfsVolArgs = append(zfsVolArgs, "-o", "mountpoint=legacy")
 	}
 
 	if len(rstr.VolSpec.Dedup) != 0 {
-		ZFSRecvParam += " -o dedup=" + rstr.VolSpec.Dedup
+		zfsVolArgs = append(zfsVolArgs, "-o", "dedup="+rstr.VolSpec.Dedup)
 	}
 	if len(rstr.VolSpec.Compression) != 0 {
-		ZFSRecvParam += " -o compression=" + rstr.VolSpec.Compression
+		zfsVolArgs = append(zfsVolArgs, "-o", "compression="+rstr.VolSpec.Compression)
 	}
 	if len(rstr.VolSpec.Encryption) != 0 {
-		ZFSRecvParam += " -o encryption=" + rstr.VolSpec.Encryption
+		zfsVolArgs = append(zfsVolArgs, "-o", "encryption="+rstr.VolSpec.Encryption)
 	}
 	if len(rstr.VolSpec.KeyLocation) != 0 {
-		ZFSRecvParam += " -o keylocation=" + rstr.VolSpec.KeyLocation
+		zfsVolArgs = append(zfsVolArgs, "-o", "keylocation="+rstr.VolSpec.KeyLocation)
 	}
 	if len(rstr.VolSpec.KeyFormat) != 0 {
-		ZFSRecvParam += " -o keyformat=" + rstr.VolSpec.KeyFormat
+		zfsVolArgs = append(zfsVolArgs, "-o", "keyformat="+rstr.VolSpec.KeyFormat)
 	}
 
-	cmd := source + ZFSVolCmd + " " + ZFSRecvArg + ZFSRecvParam + " -F " + volume
+	zfsVolArgs = append(zfsVolArgs, "-F", volume)
 
-	ZFSVolArg = append(ZFSVolArg, "-c", cmd)
-
-	return ZFSVolArg, nil
+	return zfsVolArgs
 }
 
 // builldVolumeDestroyArgs returns volume destroy command along with attributes as a string array
 func buildVolumeDestroyArgs(vol *apis.ZFSVolume) []string {
-	var ZFSVolArg []string
+	var zfsVolArgs []string
 
 	volume := vol.Spec.PoolName + "/" + vol.Name
 
-	ZFSVolArg = append(ZFSVolArg, ZFSDestroyArg, "-r", volume)
+	zfsVolArgs = append(zfsVolArgs, ZFSDestroyArg, "-r", volume)
 
-	return ZFSVolArg
+	return zfsVolArgs
 }
 
 func getVolume(volume string) error {
-	var ZFSVolArg []string
+	var zfsVolArgs []string
 
-	ZFSVolArg = append(ZFSVolArg, ZFSListArg, volume)
+	zfsVolArgs = append(zfsVolArgs, ZFSListArg, volume)
 
-	cmd := exec.Command(ZFSVolCmd, ZFSVolArg...)
+	cmd := exec.Command(ZFSVolCmd, zfsVolArgs...)
 	_, err := cmd.CombinedOutput()
 	return err
 }
@@ -488,16 +465,16 @@ func CreateClone(vol *apis.ZFSVolume) error {
 
 // SetDatasetMountProp sets mountpoint for the volume
 func SetDatasetMountProp(volume string, mountpath string) error {
-	var ZFSVolArg []string
+	var zfsVolArgs []string
 
 	mountProperty := "mountpoint=" + mountpath
-	ZFSVolArg = append(ZFSVolArg, ZFSSetArg, mountProperty, volume)
+	zfsVolArgs = append(zfsVolArgs, ZFSSetArg, mountProperty, volume)
 
-	cmd := exec.Command(ZFSVolCmd, ZFSVolArg...)
+	cmd := exec.Command(ZFSVolCmd, zfsVolArgs...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		klog.Errorf("zfs: could not set mountpoint on dataset %v cmd %v error: %s",
-			volume, ZFSVolArg, string(out))
+			volume, zfsVolArgs, string(out))
 		return fmt.Errorf("could not set the mountpoint, %s", string(out))
 	}
 	return nil
@@ -561,16 +538,16 @@ func SetDatasetLegacyMount(vol *apis.ZFSVolume) error {
 
 // GetVolumeProperty gets zfs properties for the volume
 func GetVolumeProperty(vol *apis.ZFSVolume, prop string) (string, error) {
-	var ZFSVolArg []string
+	var zfsVolArgs []string
 	volume := vol.Spec.PoolName + "/" + vol.Name
 
-	ZFSVolArg = append(ZFSVolArg, ZFSGetArg, "-pH", "-o", "value", prop, volume)
+	zfsVolArgs = append(zfsVolArgs, ZFSGetArg, "-pH", "-o", "value", prop, volume)
 
-	cmd := exec.Command(ZFSVolCmd, ZFSVolArg...)
+	cmd := exec.Command(ZFSVolCmd, zfsVolArgs...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		klog.Errorf("zfs: could not get %s on dataset %v cmd %v error: %s",
-			prop, volume, ZFSVolArg, string(out))
+			prop, volume, zfsVolArgs, string(out))
 		return "", fmt.Errorf("zfs get %s failed, %s", prop, string(out))
 	}
 	val := out[:len(out)-1]
@@ -803,20 +780,43 @@ func CreateBackup(bkp *apis.ZFSBackup) error {
 		return err
 	}
 
-	args, err := buildVolumeBackupArgs(bkp, vol)
+	rawConn, err := net.Dial("tcp", bkp.Spec.BackupDest)
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command("bash", args...)
-	out, err := cmd.CombinedOutput()
 
+	conn := NewConnWithErr(rawConn)
+
+	defer conn.Close()
+
+	args := buildVolumeBackupArgs(bkp, vol)
+	cmd := exec.Command(ZFSVolCmd, args...)
+
+	cmd.Stdout = conn
+
+	out := bytes.NewBuffer(nil)
+	cmd.Stderr = out
+
+	err = cmd.Run()
 	if err != nil {
 		klog.Errorf(
-			"zfs: could not backup the volume %v cmd %v error: %s", volume, args, string(out),
+			"zfs: could not backup the volume %v cmd %v error: %s; network error: %v",
+			volume, args, out.String(), conn.Err(),
 		)
+
+		return err
 	}
 
-	return err
+	if err := conn.Err(); err != nil {
+		klog.Errorf(
+			"zfs: could not backup the volume due to network error %v cmd %v error: %s; network error: %v",
+			volume, args, out.String(), conn.Err(),
+		)
+
+		return err
+	}
+
+	return nil
 }
 
 // DestoryBackup deletes the snapshot created
@@ -878,16 +878,20 @@ func CreateRestore(rstr *apis.ZFSRestore) error {
 		}
 		rstr.VolSpec = vol.Spec
 	}
-	args, err := buildVolumeRestoreArgs(rstr)
+	args := buildVolumeRestoreArgs(rstr)
+
+	volume := rstr.VolSpec.PoolName + "/" + rstr.Spec.VolumeName
+
+	conn, err := net.Dial("tcp", rstr.Spec.RestoreSrc)
 	if err != nil {
 		return err
 	}
 
-	volume := rstr.VolSpec.PoolName + "/" + rstr.Spec.VolumeName
+	defer conn.Close()
 
-	cmd := exec.Command("bash", args...)
+	cmd := exec.Command(ZFSVolCmd, args...)
+	cmd.Stdin = conn
 	out, err := cmd.CombinedOutput()
-
 	if err != nil {
 		klog.Errorf(
 			"zfs: could not restore the volume %v cmd %v error: %s", volume, args, string(out),
