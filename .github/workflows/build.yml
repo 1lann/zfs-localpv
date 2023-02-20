@@ -79,7 +79,7 @@ jobs:
         with:
           # add each registry to which the image needs to be pushed here
           images: |
-            ghcr.io/1lann/zfs-localpv
+            ghcr.io/1lann/zfs-driver
           tag-latest: false
           tag-custom-only: true
           tag-custom: |
